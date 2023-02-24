@@ -8,7 +8,7 @@ RUN set -eux; \
 RUN set -eux; \
     # Get version info
     source /usr/lib/os-release; \
-    # Customize os-core
+    # Customize bundles
     mkdir /repo; \
     pushd /repo; \
     mixer init --no-default-bundles --mix-version $VERSION_ID; \
@@ -40,6 +40,7 @@ tzdata-minimal\n\
     find /install_root -name clear -exec rm -rv {} +; \
     find /install_root -name swupd -exec rm -rv {} +; \
     find /install_root -name package-licenses -exec rm -rv {} +; \
+    rmdir /install_root/{autofs,boot,media,mnt,srv}; \
     # Add CA certs
     CLR_TRUST_STORE=certs clrtrust generate; \
     install -d /install_root/etc/ssl/certs; \
@@ -63,9 +64,21 @@ nonroot:x:65532:\n\
     cat /install_root/etc/group; \
     cat /install_root/usr/lib/os-release;
 
-FROM scratch
+FROM scratch AS cc-latest
 
 COPY --from=builder /install_root /
+
+FROM cc-latest AS cc-debug
+
+COPY --from=busybox:musl /bin /bin/
+ENTRYPOINT ["/bin/sh"]
+
+FROM cc-latest AS cc-nonroot
+
+USER nonroot
+WORKDIR /home/nonroot
+
+FROM cc-debug AS cc-debug-nonroot
 
 USER nonroot
 WORKDIR /home/nonroot
