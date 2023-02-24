@@ -34,6 +34,8 @@ ncurses-data\n\
 FROM builder-repo AS builder-core
 
 RUN set -eux; \
+    # Get version info
+    source /usr/lib/os-release; \
     # Install os-core
     mkdir /install_root; \
     swupd os-install --version $VERSION_ID \
@@ -81,6 +83,7 @@ nonroot:x:65532:\n\
 FROM scratch AS cc-latest
 
 COPY --from=builder-cc /install_root /
+WORKDIR /root
 
 FROM cc-latest AS cc-debug
 
@@ -104,6 +107,8 @@ RUN set -eux;
 FROM builder-repo AS builder-core-plus
 
 RUN set -eux; \
+    # Get version info
+    source /usr/lib/os-release; \
     # Install os-core & os-core-plus
     mkdir /install_root; \
     swupd os-install --version $VERSION_ID \
