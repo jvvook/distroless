@@ -1,9 +1,11 @@
-FROM clearlinux AS builder
+FROM clearlinux AS builder-base
 
 RUN set -eux; \
-    # Update & install mixer
+    # Update & install bundles
     swupd update --no-boot-update; \
-    swupd bundle-add mixer --no-boot-update;
+    swupd bundle-add mixer c-basic --no-boot-update;
+
+FROM builder-base AS builder-repo
 
 RUN set -eux; \
     # Get version info
@@ -20,10 +22,18 @@ libgcc1\n\
 netbase-data\n\
 tzdata-minimal\n\
 ' > local-bundles/os-core; \
+    mixer bundle add os-core-plus; \
+    mixer bundle edit os-core-plus; \
+    printf '\
+ncurses-data\n\
+' > local-bundles/os-core-plus; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
-    mixer build bundles; \
-    mixer build update; \
-    popd; \
+    mixer build all; \
+    popd;
+
+FROM builder-repo AS builder-core
+
+RUN set -eux; \
     # Install os-core
     mkdir /install_root; \
     swupd os-install --version $VERSION_ID \
@@ -35,7 +45,11 @@ tzdata-minimal\n\
                      --url file:///repo/update/www \
                      --certpath /repo/Swupd_Root.pem; \
     # Print contents
-    find /install_root; \
+    find /install_root;
+
+FROM builder-core AS builder-cc
+
+RUN set -eux; \
     # Strip out unnecessary files
     find /install_root -name clear -exec rm -rv {} +; \
     find /install_root -name swupd -exec rm -rv {} +; \
@@ -66,7 +80,7 @@ nonroot:x:65532:\n\
 
 FROM scratch AS cc-latest
 
-COPY --from=builder /install_root /
+COPY --from=builder-cc /install_root /
 
 FROM cc-latest AS cc-debug
 
@@ -82,3 +96,23 @@ FROM cc-debug AS cc-debug-nonroot
 
 USER nonroot
 WORKDIR /home/nonroot
+
+FROM builder-base AS builder-python
+
+RUN set -eux;
+
+FROM builder-repo AS builder-core-plus
+
+RUN set -eux; \
+    # Install os-core & os-core-plus
+    mkdir /install_root; \
+    swupd os-install --version $VERSION_ID \
+                     --path /install_root \
+                     --statedir /swupd-state \
+                     --bundles os-core,os-core-plus \
+                     --no-boot-update \
+                     --no-scripts \
+                     --url file:///repo/update/www \
+                     --certpath /repo/Swupd_Root.pem; \
+    # Print contents
+    find /install_root;
