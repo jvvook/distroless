@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 ARG PYTHON_BRANCH=3.11
 
 FROM clearlinux AS builder-base
@@ -81,12 +82,12 @@ nonroot:x:65532:\n\
 
 FROM scratch AS cc-latest
 
-COPY --from=builder-cc /install_root /
+COPY --link --from=builder-cc /install_root /
 WORKDIR /root
 
 FROM cc-latest AS cc-debug
 
-COPY --from=busybox:musl /bin /bin/
+COPY --link --from=busybox:musl /bin /bin/
 CMD ["sh"]
 
 FROM cc-latest AS cc-nonroot
@@ -102,7 +103,7 @@ WORKDIR /home/nonroot
 # Cache deps for multiple python versions (TBD)
 FROM builder-base AS builder-python-deps
 
-COPY --from=golang /usr/local/go /usr/local/go
+COPY --link --from=golang /usr/local/go /usr/local/go
 
 RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
@@ -112,16 +113,18 @@ RUN set -ex; \
     pushd /deps; \
     export CFLAGS="$CFLAGS -flto=auto"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
-    # Install bzip2 strip?
+    # Install bzip2
     git clone --depth 1 https://sourceware.org/git/bzip2; \
     pushd bzip2; \
     make "$makeopts" install CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}" PREFIX=/usr/local; \
+    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
     # Install zlib
     git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
     ./configure --static --prefix=/usr/local; \
     make "$makeopts" install; \
+    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
     # Install xz
     git clone --depth 1 https://github.com/tukaani-project/xz; \
@@ -136,8 +139,9 @@ RUN set -ex; \
                                  --disable-scripts \
                                  --disable-doc; \
     make "$makeopts" install; \
+    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
-    # Install ffi
+    # Install libffi
     git clone --depth 1 https://github.com/libffi/libffi; \
     pushd libffi; \
     ./autogen.sh; \
@@ -145,6 +149,7 @@ RUN set -ex; \
                                  --disable-multi-os-directory \
                                  --disable-docs; \
     make "$makeopts" install; \
+    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
     # Install boringssl
     git clone --depth 1 https://boringssl.googlesource.com/boringssl; \
@@ -156,8 +161,9 @@ RUN set -ex; \
              -DGO_EXECUTABLE=/usr/local/go/bin/go; \
     make "$makeopts" install; \
     popd; \
+    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
-    # Install uuid
+    # Install libuuid
     git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux; \
     pushd util-linux; \
     ./autogen.sh; \
@@ -165,8 +171,10 @@ RUN set -ex; \
                                  --disable-all-programs \
                                  --enable-libuuid; \
     make "$makeopts" install; \
+    echo "libuuid=$(git rev-parse --short HEAD)" >> /rev; \
     popd; \
     # Print contents
     popd; \
     rm -r /usr/local/go /deps; \
-    find /usr/local;
+    find /usr/local; \
+    cat /rev;
