@@ -112,32 +112,48 @@ RUN set -ex; \
     pushd /deps; \
     export CFLAGS="$CFLAGS -flto=auto"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    # Install zlib (cloudflare fork)
+    git clone --depth 1 https://github.com/cloudflare/zlib; \
+    pushd zlib; \
+    ./configure --static \
+                --prefix=/usr/local \
+                --libdir=/usr/local/lib64; \
+    make "$makeopts" install; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
     # Install bzip2
     git clone --depth 1 https://sourceware.org/git/bzip2; \
     pushd bzip2; \
-    make "$makeopts" install CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}" PREFIX=/usr/local; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install zlib
-    git clone --depth 1 https://github.com/cloudflare/zlib; \
-    pushd zlib; \
-    ./configure --static --prefix=/usr/local --libdir=/usr/local/lib64; \
-    make "$makeopts" install; \
+    make "$makeopts" libbz2.a CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}"; \
+    install -m 644 bzlib.h /usr/local/include; \
+    install -m 644 libbz2.a /usr/local/lib64; \
+    printf "\
+prefix=/usr/local\n\
+exec_prefix=/usr/local\n\
+libdir=\${exec_prefix}/lib64\n\
+includedir=\${prefix}/include\n\n\
+Name: bzip2\n\
+Description: A file compression library\n\
+Version: $(grep '^DISTNAME=' Makefile | cut -d- -f2)\n\
+Libs: -L\${libdir} -lbz2\n\
+Cflags: -I\${includedir}\n\
+" > /usr/local/lib64/pkgconfig/bzip2.pc; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install xz
     git clone --depth 1 https://github.com/tukaani-project/xz; \
     pushd xz; \
     ./autogen.sh --no-po4a; \
-    ./configure --disable-shared --prefix=/usr/local \
-                                 --libdir=/usr/local/lib64 \
-                                 --disable-xz \
-                                 --disable-xzdec \
-                                 --disable-lzmadec \
-                                 --disable-lzmainfo \
-                                 --disable-lzma-links \
-                                 --disable-scripts \
-                                 --disable-doc; \
+    ./configure --disable-shared \
+                --prefix=/usr/local \
+                --libdir=/usr/local/lib64 \
+                --disable-xz \
+                --disable-xzdec \
+                --disable-lzmadec \
+                --disable-lzmainfo \
+                --disable-lzma-links \
+                --disable-scripts \
+                --disable-doc; \
     make "$makeopts" install; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -145,10 +161,23 @@ RUN set -ex; \
     git clone --depth 1 https://github.com/libffi/libffi; \
     pushd libffi; \
     ./autogen.sh; \
-    ./configure --disable-shared --prefix=/usr/local \
-                                 --libdir=/usr/local/lib64 \
-                                 --disable-multi-os-directory \
-                                 --disable-docs; \
+    ./configure --disable-shared \
+                --prefix=/usr/local \
+                --libdir=/usr/local/lib64 \
+                --disable-multi-os-directory \
+                --disable-docs; \
+    make "$makeopts" install; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install libuuid
+    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
+    pushd libuuid; \
+    ./autogen.sh; \
+    ./configure --disable-shared \
+                --prefix=/usr/local \
+                --libdir=/usr/local/lib64 \
+                --disable-all-programs \
+                --enable-libuuid; \
     make "$makeopts" install; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -157,22 +186,11 @@ RUN set -ex; \
     pushd boringssl; \
     mkdir build; \
     pushd build; \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/openssl \
              -DCMAKE_BUILD_TYPE=Release \
              -DGO_EXECUTABLE=/usr/local/go/bin/go; \
     make "$makeopts" install; \
     popd; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install libuuid
-    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
-    pushd libuuid; \
-    ./autogen.sh; \
-    ./configure --disable-shared --prefix=/usr/local \
-                                 --libdir=/usr/local/lib64 \
-                                 --disable-all-programs \
-                                 --enable-libuuid; \
-    make "$makeopts" install; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Print contents
@@ -190,6 +208,7 @@ RUN set -ex; \
     set -u; \
     export CFLAGS="$CFLAGS -flto=auto"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    export PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig"; \
     # Install python
     mkdir /python_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
@@ -200,13 +219,17 @@ RUN set -ex; \
                 --with-lto \
                 --without-static-libpython \
                 --without-readline \
+                --with-openssl=/usr/local/openssl \
                 --with-ensurepip=no \
                 --disable-test-modules; \
+                ac_cv_working_openssl_ssl=yes \
+                ac_cv_working_openssl_hashlib=yes \
+    cat Modules/Setup.local; \
     make "$makeopts" install DESTDIR=/python_root; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Strip python, static?
-    strip /usr/local/bin/python3; \
+    # strip /usr/local/bin/python3; \
     # Print contents
     popd; \
     find /python_root; \
