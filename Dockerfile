@@ -108,7 +108,6 @@ COPY --link --from=golang /usr/local/go /usr/local/go
 RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
-    # Install pythop dependencies (without readline/gdbm/sqlite3)
     mkdir /deps; \
     pushd /deps; \
     export CFLAGS="$CFLAGS -flto=auto"; \
@@ -122,7 +121,7 @@ RUN set -ex; \
     # Install zlib
     git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
-    ./configure --static --prefix=/usr/local; \
+    ./configure --static --prefix=/usr/local --libdir=/usr/local/lib64; \
     make "$makeopts" install; \
     echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -131,6 +130,7 @@ RUN set -ex; \
     pushd xz; \
     ./autogen.sh --no-po4a; \
     ./configure --disable-shared --prefix=/usr/local \
+                                 --libdir=/usr/local/lib64 \
                                  --disable-xz \
                                  --disable-xzdec \
                                  --disable-lzmadec \
@@ -146,6 +146,7 @@ RUN set -ex; \
     pushd libffi; \
     ./autogen.sh; \
     ./configure --disable-shared --prefix=/usr/local \
+                                 --libdir=/usr/local/lib64 \
                                  --disable-multi-os-directory \
                                  --disable-docs; \
     make "$makeopts" install; \
@@ -165,9 +166,10 @@ RUN set -ex; \
     popd; \
     # Install libuuid
     git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
-    pushd util-linux; \
+    pushd libuuid; \
     ./autogen.sh; \
     ./configure --disable-shared --prefix=/usr/local \
+                                 --libdir=/usr/local/lib64 \
                                  --disable-all-programs \
                                  --enable-libuuid; \
     make "$makeopts" install; \
@@ -177,4 +179,35 @@ RUN set -ex; \
     popd; \
     rm -r /usr/local/go /deps; \
     find /usr/local; \
+    cat /revisions;
+
+FROM builder-python-deps AS builder-python
+
+ARG PYTHON_BRANCH
+
+RUN set -ex; \
+    source /usr/share/defaults/etc/profile; \
+    set -u; \
+    export CFLAGS="$CFLAGS -flto=auto"; \
+    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    # Install python
+    mkdir /python_root; \
+    git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
+    pushd python; \
+    ./configure --prefix=/usr/local \
+                --with-pkg-config=yes \
+                --enable-optimizations \
+                --with-lto \
+                --without-static-libpython \
+                --without-readline \
+                --with-ensurepip=no \
+                --disable-test-modules; \
+    make "$makeopts" install DESTDIR=/python_root; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Strip python, static?
+    strip /usr/local/bin/python3; \
+    # Print contents
+    popd; \
+    find /python_root; \
     cat /revisions;
