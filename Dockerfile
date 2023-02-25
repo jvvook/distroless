@@ -117,14 +117,14 @@ RUN set -ex; \
     git clone --depth 1 https://sourceware.org/git/bzip2; \
     pushd bzip2; \
     make "$makeopts" install CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}" PREFIX=/usr/local; \
-    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install zlib
     git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
     ./configure --static --prefix=/usr/local; \
     make "$makeopts" install; \
-    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install xz
     git clone --depth 1 https://github.com/tukaani-project/xz; \
@@ -139,7 +139,7 @@ RUN set -ex; \
                                  --disable-scripts \
                                  --disable-doc; \
     make "$makeopts" install; \
-    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libffi
     git clone --depth 1 https://github.com/libffi/libffi; \
@@ -149,7 +149,7 @@ RUN set -ex; \
                                  --disable-multi-os-directory \
                                  --disable-docs; \
     make "$makeopts" install; \
-    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install boringssl
     git clone --depth 1 https://boringssl.googlesource.com/boringssl; \
@@ -161,20 +161,20 @@ RUN set -ex; \
              -DGO_EXECUTABLE=/usr/local/go/bin/go; \
     make "$makeopts" install; \
     popd; \
-    echo "$(pwd)=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libuuid
-    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux; \
+    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
     pushd util-linux; \
     ./autogen.sh; \
     ./configure --disable-shared --prefix=/usr/local \
                                  --disable-all-programs \
                                  --enable-libuuid; \
     make "$makeopts" install; \
-    echo "libuuid=$(git rev-parse --short HEAD)" >> /rev; \
+    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Print contents
     popd; \
     rm -r /usr/local/go /deps; \
     find /usr/local; \
-    cat /rev;
+    cat /revisions;
