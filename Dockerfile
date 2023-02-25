@@ -99,18 +99,19 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
-FROM builder-base AS builder-python
+FROM builder-base AS builder-python-deps
 
-# Official go distribution
 COPY --from=golang /usr/local/go /usr/local/go
 
-RUN set -eux; \
-    # Install pythop dependencies (no readline/gdbm)
+RUN set -ex; \
+    source /usr/share/defaults/etc/profile; \
+    set -u; \
+    # Install pythop dependencies (without readline/gdbm/sqlite3)
     mkdir /deps; \
     pushd /deps; \
     export CFLAGS="$CFLAGS -flto=auto"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
-    # Install bzip2 strip? pic?
+    # Install bzip2 strip?
     git clone --depth 1 https://sourceware.org/git/bzip2; \
     pushd bzip2; \
     make "$makeopts" install CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}" PREFIX=/usr/local; \
@@ -134,7 +135,7 @@ RUN set -eux; \
                                  --disable-lzma-links \
                                  --disable-scripts \
                                  --disable-doc; \
-    make "$makeopts" install ; \
+    make "$makeopts" install; \
     popd; \
     # Install ffi
     git clone --depth 1 https://github.com/libffi/libffi; \
@@ -154,14 +155,7 @@ RUN set -eux; \
              -DCMAKE_BUILD_TYPE=Release \
              -DGO_EXECUTABLE=/usr/local/go/bin/go; \
     make "$makeopts" install; \
-    rm -rf /usr/local/go; \
     popd; \
-    popd; \
-    # Install sqlite
-    git clone --depth 1 https://github.com/sqlite/sqlite; \
-    pushd sqlite; \
-    ./configure --disable-shared --prefix=/usr/local; \
-    make "$makeopts" install; \
     popd; \
     # Install uuid
     git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux; \
@@ -173,6 +167,7 @@ RUN set -eux; \
     make "$makeopts" install; \
     popd; \
     # Print contents
+    rm -r /usr/local/go; \
     find /usr/local; \
     # Install python
     # Print contents
