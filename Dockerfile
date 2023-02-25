@@ -99,6 +99,7 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
+# Cache deps for multiple python versions (TBD)
 FROM builder-base AS builder-python-deps
 
 COPY --from=golang /usr/local/go /usr/local/go
@@ -117,16 +118,15 @@ RUN set -ex; \
     make "$makeopts" install CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}" PREFIX=/usr/local; \
     popd; \
     # Install zlib
-    git clone --depth 1 https://github.com/madler/zlib; \
+    git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
     ./configure --static --prefix=/usr/local; \
     make "$makeopts" install; \
     popd; \
     # Install xz
-    xz_branch="$(curl https://api.github.com/repos/tukaani-project/xz/tags | jq -r '.[].name' | grep '[0-9]$' | sort -V | tail -1 | cut -d. -f1,2)"; \
-    git clone --depth 1 --branch "$xz_branch" https://github.com/tukaani-project/xz; \
+    git clone --depth 1 https://github.com/tukaani-project/xz; \
     pushd xz; \
-    ./autogen.sh; \
+    ./autogen.sh --no-po4a; \
     ./configure --disable-shared --prefix=/usr/local \
                                  --disable-xz \
                                  --disable-xzdec \
@@ -167,8 +167,6 @@ RUN set -ex; \
     make "$makeopts" install; \
     popd; \
     # Print contents
-    rm -r /usr/local/go; \
-    find /usr/local; \
-    # Install python
-    # Print contents
-    popd;
+    popd; \
+    rm -r /usr/local/go /deps; \
+    find /usr/local;
