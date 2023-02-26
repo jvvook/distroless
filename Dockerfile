@@ -5,9 +5,18 @@ FROM clearlinux AS builder-base
 
 RUN set -eux; \
     swupd update --no-boot-update; \
-    swupd bundle-add mixer c-basic diffutils --no-boot-update;
+    swupd bundle-add mixer \
+                     # python dependencies (no readline/gdbm/sqlite3)
+                     devpkg-zlib \
+                     devpkg-bzip2 \
+                     devpkg-xz \
+                     devpkg-libffi \
+                     devpkg-expat \
+                     devpkg-util-linux \
+                     devpkg-openssl \
+                     --no-boot-update;
 
-FROM builder-base AS builder-repo
+FROM builder-base AS builder-cc
 
 RUN set -eux; \
     source /usr/lib/os-release; \
@@ -21,25 +30,16 @@ RUN set -eux; \
 glibc-lib-avx2\n\
 libgcc1\n\
 netbase-data\n\
-tzdata-minimal\n\
+# tzdata-minimal\n\
+tzdata\n\
 ' > local-bundles/os-core; \
-#     mixer bundle add os-core-plus; \
-#     mixer bundle edit os-core-plus; \
-#     printf '\
-# ncurses-data\n\
-# ' > local-bundles/os-core-plus; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
     mixer build all; \
-    popd;
-
-FROM builder-repo AS builder-core
-
-RUN set -eux; \
-    source /usr/lib/os-release; \
+    popd; \
     # Install os-core
-    mkdir /install_root; \
+    mkdir /cc_root; \
     swupd os-install --version "$VERSION_ID" \
-                     --path /install_root \
+                     --path /cc_root \
                      --statedir /swupd-state \
                      --bundles os-core \
                      --no-boot-update \
@@ -47,42 +47,40 @@ RUN set -eux; \
                      --url file:///repo/update/www \
                      --certpath /repo/Swupd_Root.pem; \
     # Print contents
-    find /install_root;
-
-FROM builder-core AS builder-cc
-
-RUN set -eux; \
+    find /cc_root; \
     # Strip out unnecessary files
-    find /install_root -name clear -exec rm -rv {} +; \
-    find /install_root -name swupd -exec rm -rv {} +; \
-    find /install_root -name package-licenses -exec rm -rv {} +; \
-    rmdir /install_root/{autofs,boot,media,mnt,srv}; \
+    find /cc_root -depth \
+        \( \
+            -name clear \
+         -o -name swupd \
+         -o -name package-licenses \
+        \) -exec rm -rv {} +; \
+    rm -rv /cc_root/{autofs,boot,media,mnt,srv}; \
     # Add CA certs
     CLR_TRUST_STORE=certs clrtrust generate; \
-    install -d /install_root/etc/ssl/certs; \
-    install -D -m 644 certs/anchors/ca-certificates.crt /install_root/etc/ssl/certs/ca-certificates.crt; \
+    install -Dvm644 certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
     # Create passwd/group files (from distroless, without staff)
     printf '\
 root:x:0:0:root:/root:/sbin/nologin\n\
 nobody:x:65534:65534:nobody:/nonexistent:/sbin/nologin\n\
 nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin\n\
-' > /install_root/etc/passwd; \
+' > /cc_root/etc/passwd; \
     printf '\
 root:x:0:\n\
 nobody:x:65534:\n\
 tty:x:5:\n\
 nonroot:x:65532:\n\
-' > /install_root/etc/group; \
-    install -d -m 700 -g 65532 -o 65532 /install_root/home/nonroot; \
+' > /cc_root/etc/group; \
+    install -dvm700 -g65532 -o65532 /cc_root/home/nonroot; \
     # Print contents
-    find /install_root; \
-    cat /install_root/etc/passwd; \
-    cat /install_root/etc/group; \
-    cat /install_root/usr/lib/os-release;
+    find /cc_root; \
+    cat /cc_root/etc/passwd; \
+    cat /cc_root/etc/group; \
+    cat /cc_root/usr/lib/os-release;
 
 FROM scratch AS cc-latest
 
-COPY --link --from=builder-cc /install_root /
+COPY --link --from=builder-cc /cc_root /
 WORKDIR /root
 
 FROM cc-latest AS cc-debug
@@ -100,137 +98,45 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
-# Cache deps for multiple python versions (TBD)
-FROM builder-base AS builder-python-deps
-
-COPY --link --from=golang /usr/local/go /usr/local/go
-
-RUN set -ex; \
-    source /usr/share/defaults/etc/profile; \
-    set -u; \
-    mkdir /deps; \
-    pushd /deps; \
-    export CFLAGS="$CFLAGS -flto=auto"; \
-    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
-    # Install zlib (cloudflare fork)
-    git clone --depth 1 https://github.com/cloudflare/zlib; \
-    pushd zlib; \
-    ./configure --static \
-                --prefix=/usr/local \
-                --libdir=/usr/local/lib64; \
-    make "$makeopts" install; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install bzip2
-    git clone --depth 1 https://sourceware.org/git/bzip2; \
-    pushd bzip2; \
-    make "$makeopts" libbz2.a CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}"; \
-    install -m 644 bzlib.h /usr/local/include; \
-    install -m 644 libbz2.a /usr/local/lib64; \
-    printf "\
-prefix=/usr/local\n\
-exec_prefix=/usr/local\n\
-libdir=\${exec_prefix}/lib64\n\
-includedir=\${prefix}/include\n\n\
-Name: bzip2\n\
-Description: A file compression library\n\
-Version: $(grep '^DISTNAME=' Makefile | cut -d- -f2)\n\
-Libs: -L\${libdir} -lbz2\n\
-Cflags: -I\${includedir}\n\
-" > /usr/local/lib64/pkgconfig/bzip2.pc; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install xz
-    git clone --depth 1 https://github.com/tukaani-project/xz; \
-    pushd xz; \
-    ./autogen.sh --no-po4a; \
-    ./configure --disable-shared \
-                --prefix=/usr/local \
-                --libdir=/usr/local/lib64 \
-                --disable-xz \
-                --disable-xzdec \
-                --disable-lzmadec \
-                --disable-lzmainfo \
-                --disable-lzma-links \
-                --disable-scripts \
-                --disable-doc; \
-    make "$makeopts" install; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install libffi
-    git clone --depth 1 https://github.com/libffi/libffi; \
-    pushd libffi; \
-    ./autogen.sh; \
-    ./configure --disable-shared \
-                --prefix=/usr/local \
-                --libdir=/usr/local/lib64 \
-                --disable-multi-os-directory \
-                --disable-docs; \
-    make "$makeopts" install; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install libuuid
-    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
-    pushd libuuid; \
-    ./autogen.sh; \
-    ./configure --disable-shared \
-                --prefix=/usr/local \
-                --libdir=/usr/local/lib64 \
-                --disable-all-programs \
-                --enable-libuuid; \
-    make "$makeopts" install; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Install boringssl
-    git clone --depth 1 https://boringssl.googlesource.com/boringssl; \
-    pushd boringssl; \
-    mkdir build; \
-    pushd build; \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local/openssl \
-             -DCMAKE_BUILD_TYPE=Release \
-             -DGO_EXECUTABLE=/usr/local/go/bin/go; \
-    make "$makeopts" install; \
-    popd; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
-    popd; \
-    # Print contents
-    popd; \
-    rm -r /usr/local/go /deps; \
-    find /usr/local; \
-    cat /revisions;
-
-FROM builder-python-deps AS builder-python
+FROM builder-base AS builder-py
 
 ARG PYTHON_BRANCH
 
 RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
-    export CFLAGS="$CFLAGS -flto=auto"; \
-    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
-    export PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig"; \
+    export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
     # Install python
-    mkdir /python_root; \
+    mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
     pushd python; \
-    ./configure --prefix=/usr/local \
-                --with-pkg-config=yes \
+    ./configure --enable-option-checking=fatal \
                 --enable-optimizations \
                 --with-lto \
-                --without-static-libpython \
-                --without-readline \
-                --with-openssl=/usr/local/openssl \
-                --with-ensurepip=no \
-                --disable-test-modules; \
-                ac_cv_working_openssl_ssl=yes \
-                ac_cv_working_openssl_hashlib=yes \
+                --with-system-expat \
+                --without-ensurepip \
     cat Modules/Setup.local; \
-    make "$makeopts" install DESTDIR=/python_root; \
-    echo "$(basename "$(pwd)")=$(git rev-parse --short HEAD)" >> /revisions; \
+    make "-j$(nproc)" install DESTDIR=/py_root; \
     popd; \
-    # Strip python, static?
-    # strip /usr/local/bin/python3; \
+    find /py_root; \
+    # Strip out unnecessary files (from official python images)
+    find /py_root/usr/local -depth \
+        \( \
+            \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+            -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+        \) -exec rm -rvf '{}' + \
+    ; \
+    # Copy shared libraries
+    find /usr/lib64 -depth -type f \
+        \( \
+            -name 'libz.so.*' \
+         -o -name 'libbz2.so.*' \
+         -o -name 'liblzma.so.*' \
+         -o -name 'libffi.so.*' \
+         -o -name 'libexpat.so.*' \
+         -o -name 'libuuid.so.*' \
+         -o -name 'libcrypto.so.*' \
+         -o -name 'libssl.so.*' \
+        \) -exec install -Dvm644 '{}' '/py_root/{}' \;; \
     # Print contents
-    popd; \
-    find /python_root; \
-    cat /revisions;
+    find /py_root;
