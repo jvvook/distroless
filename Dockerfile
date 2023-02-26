@@ -109,12 +109,13 @@ RUN set -ex; \
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
-    MODULE_BUILDTYPE=static ./configure --enable-option-checking=fatal \
-                                        # --enable-optimizations \
-                                        # --with-lto \
-                                        --with-system-expat \
-                                        --without-ensurepip; \
-    # ln -sfr Modules/Setup.stdlib Modules/Setup.local; \
+    ./configure --enable-option-checking=fatal \
+                # --enable-optimizations \
+                # --with-lto \
+                --with-system-expat \
+                --without-ensurepip \
+                --enable-shared \
+                MODULE_BUILDTYPE=static; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
@@ -135,7 +136,7 @@ RUN set -ex; \
     ln -sv python3 python; \
     popd; \
     pushd lib; \
-    find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
+    # find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     # libpython3-stdlib in Debian includes pydoc
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc*; \
