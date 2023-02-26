@@ -6,7 +6,7 @@ FROM clearlinux AS builder-base
 RUN set -eux; \
     swupd update --no-boot-update; \
     swupd bundle-add mixer \
-                     # python dependencies (no readline/gdbm/sqlite3)
+                     # python dependencies (no ncurses/readline/gdbm/sqlite3)
                      devpkg-zlib \
                      devpkg-bzip2 \
                      devpkg-xz \
@@ -54,11 +54,11 @@ tzdata\n\
             -name clear \
          -o -name swupd \
          -o -name package-licenses \
-        \) -exec rm -rv {} +; \
+        \) -exec rm -rv '{}' +; \
     rm -rv /cc_root/{autofs,boot,media,mnt,srv}; \
     # Add CA certs
-    CLR_TRUST_STORE=certs clrtrust generate; \
-    install -Dvm644 certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
+    CLR_TRUST_STORE=/certs clrtrust generate; \
+    install -Dvm644 /certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
     # Create passwd/group files (from distroless, without staff)
     printf '\
 root:x:0:0:root:/root:/sbin/nologin\n\
@@ -108,15 +108,16 @@ RUN set -ex; \
     export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
     # Install python
     mkdir /py_root; \
-    git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
-    pushd python; \
-    ./configure --enable-option-checking=fatal \
-                --enable-optimizations \
-                --with-lto \
-                --with-system-expat \
-                --without-ensurepip \
-    cat Modules/Setup.local; \
-    make "-j$(nproc)" install DESTDIR=/py_root; \
+    git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
+    pushd cpython; \
+    MODULE_BUILDTYPE=static ./configure --enable-option-checking=fatal \
+                                        --enable-optimizations \
+                                        --with-lto \
+                                        --with-system-expat \
+                                        --without-ensurepip; \
+    cat Modules/Setup.stdlib; \
+    make "-j$(nproc)"; \
+    make install DESTDIR=/py_root; \
     popd; \
     find /py_root; \
     # Strip out unnecessary files (from official python images)
@@ -124,8 +125,24 @@ RUN set -ex; \
         \( \
             \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
             -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
-        \) -exec rm -rvf '{}' + \
-    ; \
+        \) -exec rm -rv '{}' +; \
+    # Strip out unnecessary files
+    pyid="python$PYTHON_BRANCH"; \
+    pushd /py_root/usr/local; \
+    find . -maxdepth 1 ! -name bin ! -name lib ! -name . -exec rm -rv '{}' +; \
+    pushd bin; \
+    find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
+    ln -sv "$pyid" python3; \
+    ln -sv python3 python; \
+    popd; \
+    pushd lib; \
+    find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
+    pushd "$pyid"; \
+    # Remove pydoc, __pycache__, lib-dynload? strip?
+    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter; \
+    popd; \
+    popd; \
+    popd; \
     # Copy shared libraries
     find /usr/lib64 -depth -type f \
         \( \
