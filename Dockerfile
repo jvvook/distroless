@@ -109,13 +109,18 @@ RUN set -ex; \
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
+    # Check out Modules/Setup.stdlib.in
+    ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
                 # --enable-optimizations \
                 # --with-lto \
+                --enable-shared \
                 --with-system-expat \
                 --without-ensurepip \
-                --enable-shared \
-                MODULE_BUILDTYPE=static; \
+                --disable-test-modules \
+                MODULE_BUILDTYPE=static \
+                py_cv_module_xxlimited=disabled \
+                py_cv_module_xxlimited_35=disabled; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
@@ -126,6 +131,7 @@ RUN set -ex; \
             \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
             -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
         \) -exec rm -rv '{}' +; \
+    find /py_root/usr/local -depth -type d -name __pycache__ -delete; \
     # Strip out unnecessary files
     pyid="python$PYTHON_BRANCH"; \
     pushd /py_root/usr/local; \
@@ -136,7 +142,8 @@ RUN set -ex; \
     ln -sv python3 python; \
     popd; \
     pushd lib; \
-    # find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
+    find . -maxdepth 1 -type f -name "lib$pyid.so.*" -exec install -Dvm755 '{}' '../lib64/{}' \;; \
+    find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     # libpython3-stdlib in Debian includes pydoc
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc*; \
@@ -156,7 +163,7 @@ RUN set -ex; \
          -o -name 'libuuid.so.*' \
          -o -name 'libcrypto.so.*' \
          -o -name 'libssl.so.*' \
-        \) -exec install -Dvm644 '{}' '/py_root/{}' \;; \
+        \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
     # Print contents
     find /py_root;
     # TODO:  __pycache__, lib-dynload? strip?
