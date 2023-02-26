@@ -138,8 +138,10 @@ RUN set -ex; \
     pushd lib; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
-    # Remove pydoc, __pycache__, lib-dynload? strip?
+    # libpython3-stdlib in Debian includes pydoc
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter; \
+    # python3-examples in Debian
+    rm -rv turtledemo; \
     popd; \
     popd; \
     popd; \
@@ -157,3 +159,4 @@ RUN set -ex; \
         \) -exec install -Dvm644 '{}' '/py_root/{}' \;; \
     # Print contents
     find /py_root;
+    # TODO:  __pycache__, lib-dynload? strip?
