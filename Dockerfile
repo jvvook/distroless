@@ -110,11 +110,11 @@ RUN set -ex; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
     MODULE_BUILDTYPE=static ./configure --enable-option-checking=fatal \
-                                        --enable-optimizations \
-                                        --with-lto \
+                                        # --enable-optimizations \
+                                        # --with-lto \
                                         --with-system-expat \
                                         --without-ensurepip; \
-    cat Modules/Setup.stdlib; \
+    # ln -sfr Modules/Setup.stdlib Modules/Setup.local; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
