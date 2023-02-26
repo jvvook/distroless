@@ -81,7 +81,6 @@ nonroot:x:65532:\n\
 FROM scratch AS cc-latest
 
 COPY --link --from=builder-cc /cc_root /
-WORKDIR /root
 
 FROM cc-latest AS cc-debug
 
@@ -139,7 +138,7 @@ RUN set -ex; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     # libpython3-stdlib in Debian includes pydoc
-    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter; \
+    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc*; \
     # python3-examples in Debian
     rm -rv turtledemo; \
     popd; \
@@ -160,3 +159,23 @@ RUN set -ex; \
     # Print contents
     find /py_root;
     # TODO:  __pycache__, lib-dynload? strip?
+
+FROM cc-latest AS py-latest
+
+COPY --link --from=builder-py /py_root /
+CMD ["python"]
+
+FROM py-latest AS py-debug
+
+COPY --link --from=busybox:musl /bin /bin/
+CMD ["sh"]
+
+FROM py-latest AS py-nonroot
+
+USER nonroot
+WORKDIR /home/nonroot
+
+FROM py-debug AS py-debug-nonroot
+
+USER nonroot
+WORKDIR /home/nonroot
