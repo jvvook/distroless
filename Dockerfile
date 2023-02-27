@@ -109,7 +109,8 @@ RUN set -ex; \
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
-    # Check Modules/Setup.stdlib.in
+    # Might not be needed in 3.12
+    sed -i 's/#@MODULE__CTYPES_TRUE@//' Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
                 # --enable-optimizations \
@@ -119,8 +120,9 @@ RUN set -ex; \
                 --without-ensurepip \
                 --disable-test-modules \
                 MODULE_BUILDTYPE=static \
-                py_cv_module_xxlimited=disabled \
-                py_cv_module_xxlimited_35=disabled; \
+                # xxlimited cannot be built as static libraries
+                py_cv_module_xxlimited=n/a \
+                py_cv_module_xxlimited_35=n/a; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
