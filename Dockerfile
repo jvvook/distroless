@@ -147,8 +147,10 @@ RUN set -ex; \
     find . -maxdepth 1 -type f -name "lib$pyid.so.*" -exec install -Dvm755 '{}' '../lib64/{}' \;; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
+    [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
+    rm -rv lib-dynload; \
     # Similar to Debian libpython3-stdlib (pydoc?)
-    rm -rv lib-dynload config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
+    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
     popd; \
     popd; \
