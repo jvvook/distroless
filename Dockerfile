@@ -6,7 +6,7 @@ FROM clearlinux AS builder-base
 RUN set -eux; \
     swupd update --no-boot-update; \
     swupd bundle-add mixer \
-                     # python dependencies (no ncurses/readline/gdbm/sqlite3)
+                     # python dependencies (w/o ncurses/readline/gdbm/sqlite3)
                      devpkg-zlib \
                      devpkg-bzip2 \
                      devpkg-xz \
@@ -20,7 +20,7 @@ FROM builder-base AS builder-cc
 
 RUN set -eux; \
     source /usr/lib/os-release; \
-    # Customize bundles
+    # Customize os-core
     mkdir /repo; \
     pushd /repo; \
     mixer init --no-default-bundles --mix-version "$VERSION_ID"; \
@@ -60,19 +60,19 @@ tzdata\n\
     # Add CA certs
     CLR_TRUST_STORE=/certs clrtrust generate; \
     install -Dvm644 /certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
-    # Create passwd/group files (from distroless, without staff)
+    # Create passwd/group files (no staff)
     printf '\
 root:x:0:0:root:/root:/sbin/nologin\n\
 nobody:x:65534:65534:nobody:/nonexistent:/sbin/nologin\n\
-nonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin\n\
+nonroot:x:54321:54321:nonroot:/home/nonroot:/sbin/nologin\n\
 ' > /cc_root/etc/passwd; \
     printf '\
 root:x:0:\n\
 nobody:x:65534:\n\
 tty:x:5:\n\
-nonroot:x:65532:\n\
+nonroot:x:54321:\n\
 ' > /cc_root/etc/group; \
-    install -dvm700 -g65532 -o65532 /cc_root/home/nonroot; \
+    install -dvm700 -g54321 -o54321 /cc_root/home/nonroot; \
     # Print contents
     find /cc_root; \
     cat /cc_root/etc/passwd; \
@@ -150,7 +150,7 @@ RUN set -ex; \
     pushd "$pyid"; \
     [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
     rm -rv lib-dynload; \
-    # Similar to Debian libpython3-stdlib (pydoc?)
+    # Strip like debian libpython3-stdlib (pydoc?)
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
     popd; \
@@ -166,7 +166,7 @@ RUN set -ex; \
          -o -name 'libuuid.so.*' \
          -o -name 'libcrypto.so.*' \
          -o -name 'libssl.so.*' \
-         # PyTorch needs libstdc++
+         # Some packages (e.g. pytorch) need libstdc++
          -o -name 'libstdc++.so.*' \
         \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
     # Print contents
