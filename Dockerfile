@@ -109,7 +109,7 @@ RUN set -ex; \
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
-    # Check out Modules/Setup.stdlib.in
+    # Check Modules/Setup.stdlib.in
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
                 # --enable-optimizations \
@@ -125,14 +125,13 @@ RUN set -ex; \
     make install DESTDIR=/py_root; \
     popd; \
     find /py_root; \
-    # Strip out unnecessary files (from official python images)
+    # Strip out unnecessary files
     find /py_root/usr/local -depth \
         \( \
             \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
             -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
         \) -exec rm -rv '{}' +; \
     find /py_root/usr/local -depth -type d -name __pycache__ -delete; \
-    # Strip out unnecessary files
     pyid="python$PYTHON_BRANCH"; \
     pushd /py_root/usr/local; \
     find . -maxdepth 1 ! -name bin ! -name lib ! -name . -exec rm -rv '{}' +; \
@@ -145,10 +144,8 @@ RUN set -ex; \
     find . -maxdepth 1 -type f -name "lib$pyid.so.*" -exec install -Dvm755 '{}' '../lib64/{}' \;; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
-    # libpython3-stdlib in Debian includes pydoc
-    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc*; \
-    # python3-examples in Debian
-    rm -rv turtledemo; \
+    # Similar to Debian libpython3-stdlib (pydoc?)
+    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
     popd; \
     popd; \
@@ -163,10 +160,11 @@ RUN set -ex; \
          -o -name 'libuuid.so.*' \
          -o -name 'libcrypto.so.*' \
          -o -name 'libssl.so.*' \
+         # PyTorch needs libstdc++
+         -o -name 'libstdc++.so.*' \
         \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
     # Print contents
     find /py_root;
-    # TODO:  __pycache__, lib-dynload? strip?
 
 FROM cc-latest AS py-latest
 
