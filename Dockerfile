@@ -111,6 +111,8 @@ RUN set -ex; \
     pushd cpython; \
     # Might not be needed in 3.12
     sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
+    # Build test modules as shared libraries
+    sed -i '/^# Test modules/a \*shared\*' Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
                 # --enable-optimizations \
@@ -118,11 +120,7 @@ RUN set -ex; \
                 --enable-shared \
                 --with-system-expat \
                 --without-ensurepip \
-                --disable-test-modules \
-                MODULE_BUILDTYPE=static \
-                # xxlimited cannot be built as static libraries
-                py_cv_module_xxlimited=n/a \
-                py_cv_module_xxlimited_35=n/a; \
+                MODULE_BUILDTYPE=static; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
@@ -147,7 +145,7 @@ RUN set -ex; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     # Similar to Debian libpython3-stdlib (pydoc?)
-    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
+    rm -rv lib-dynload config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
     popd; \
     popd; \
