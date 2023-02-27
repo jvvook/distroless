@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 ARG PYTHON_BRANCH=3.11
 
-FROM clearlinux AS builder-cc
+FROM clearlinux AS builder-base
 
 RUN set -eux; \
     swupd update --no-boot-update; \
@@ -14,8 +14,9 @@ RUN set -eux; \
                      devpkg-expat \
                      devpkg-util-linux \
                      devpkg-openssl \
-                     rsync \
                      --no-boot-update;
+
+FROM builder-base AS builder-cc
 
 RUN set -eux; \
     source /usr/lib/os-release; \
@@ -72,10 +73,6 @@ tty:x:5:\n\
 nonroot:x:54321:\n\
 ' > /cc_root/etc/group; \
     install -dvm700 -g54321 -o54321 /cc_root/home/nonroot; \
-    # Generate ldconfig cache
-    install -dv /cc_root/usr/local/lib64; \
-    echo /usr/local/lib64 > /cc_root/etc/ld.so.conf; \
-    ldconfig -v -r /cc_root; \
     # Print contents
     find /cc_root; \
     cat /cc_root/etc/passwd; \
@@ -84,12 +81,12 @@ nonroot:x:54321:\n\
 
 FROM scratch AS cc-latest
 
-COPY --link --from=builder-cc /cc_root/ /
+COPY --link --from=builder-cc /cc_root /
 ENV LANG=C.UTF-8
 
 FROM cc-latest AS cc-debug
 
-COPY --link --from=busybox:musl /bin/ /bin/
+COPY --link --from=busybox:musl /bin /bin/
 CMD ["sh"]
 
 FROM cc-latest AS cc-nonroot
@@ -102,7 +99,7 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
-FROM builder-cc AS builder-py
+FROM builder-base AS builder-py
 
 ARG PYTHON_BRANCH
 
@@ -172,23 +169,18 @@ RUN set -ex; \
          # Some packages (e.g. pytorch) need libstdc++
          -o -name 'libstdc++.so.*' \
         \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
-    # Generate ldconfig cache
-    rsync -av /py_root/ /cc_root/; \
-    ldconfig -v -r /cc_root; \
-    install -dv /py_root/var/cache; \
-    mv -v /cc_root/var/cache/ldconfig /py_root/var/cache/; \
     # Print contents
     find /py_root; \
     ldd -r /py_root/usr/local/bin/python;
 
 FROM cc-latest AS py-latest
 
-COPY --link --from=builder-py /py_root/ /
+COPY --link --from=builder-py /py_root /
 CMD ["python"]
 
 FROM py-latest AS py-debug
 
-COPY --link --from=busybox:musl /bin/ /bin/
+COPY --link --from=busybox:musl /bin /bin/
 CMD ["sh"]
 
 FROM py-latest AS py-nonroot
