@@ -34,6 +34,7 @@ netbase-data\n\
 tzdata\n\
 ' > local-bundles/os-core; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
+    cat builder.conf; \
     mixer build all; \
     popd; \
     # Install os-core
@@ -113,10 +114,11 @@ RUN set -ex; \
     sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
     # Build test modules as shared libraries
     sed -i '/^# Test modules/a \*shared\*' Modules/Setup.stdlib.in; \
+    cat Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
-                # --enable-optimizations \
-                # --with-lto \
+                --enable-optimizations \
+                --with-lto \
                 --enable-shared \
                 --with-system-expat \
                 --without-ensurepip \
@@ -124,6 +126,7 @@ RUN set -ex; \
     make "-j$(nproc)"; \
     make install DESTDIR=/py_root; \
     popd; \
+    # Print contents
     find /py_root; \
     # Strip out unnecessary files
     find /py_root/usr/local -depth \
@@ -164,7 +167,8 @@ RUN set -ex; \
          -o -name 'libstdc++.so.*' \
         \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
     # Print contents
-    find /py_root;
+    find /py_root; \
+    ldd -r /py_root/usr/local/bin/python;
 
 FROM cc-latest AS py-latest
 
