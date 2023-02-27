@@ -110,7 +110,7 @@ RUN set -ex; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
     pushd cpython; \
     # Might not be needed in 3.12
-    sed -i 's/#@MODULE__CTYPES_TRUE@//' Modules/Setup.stdlib.in; \
+    sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
                 # --enable-optimizations \
