@@ -14,7 +14,6 @@ RUN set -eux; \
                      devpkg-expat \
                      devpkg-util-linux \
                      devpkg-openssl \
-                     rsync \
                      --no-boot-update;
 
 RUN set -eux; \
@@ -75,7 +74,7 @@ nonroot:x:54321:\n\
     # Generate ldconfig cache
     install -dv /cc_root/usr/local/lib64; \
     echo /usr/local/lib64 > /cc_root/etc/ld.so.conf; \
-    ldconfig -v -r /cc_root; \
+    ldconfig -v -X -r /cc_root; \
     # Print contents
     find /cc_root; \
     cat /cc_root/etc/passwd; \
@@ -121,8 +120,8 @@ RUN set -ex; \
     cat Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
-                --enable-optimizations \
-                --with-lto \
+                # --enable-optimizations \
+                # --with-lto \
                 --enable-shared \
                 --with-system-expat \
                 --without-ensurepip \
@@ -173,8 +172,8 @@ RUN set -ex; \
          -o -name 'libstdc++.so.*' \
         \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
     # Generate ldconfig cache
-    rsync -av /py_root/ /cc_root/; \
-    ldconfig -v -r /cc_root; \
+    cp -arlv /py_root/* /cc_root; \
+    ldconfig -v -X -r /cc_root; \
     install -dv /py_root/var/cache; \
     mv -v /cc_root/var/cache/ldconfig /py_root/var/cache/; \
     # Print contents
