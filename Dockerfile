@@ -82,6 +82,7 @@ nonroot:x:65532:\n\
 FROM scratch AS cc-latest
 
 COPY --link --from=builder-cc /cc_root /
+ENV LANG=C.UTF-8
 
 FROM cc-latest AS cc-debug
 
@@ -132,7 +133,7 @@ RUN set -ex; \
     find /py_root/usr/local -depth \
         \( \
             \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-            -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+         -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
         \) -exec rm -rv '{}' +; \
     find /py_root/usr/local -depth -type d -name __pycache__ -delete; \
     pyid="python$PYTHON_BRANCH"; \
