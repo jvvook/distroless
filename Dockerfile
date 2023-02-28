@@ -199,8 +199,7 @@ Cflags: -I\${includedir}\n\
     popd; \
     popd; \
     # Print contents
-    rm -rv /usr/local/share; \
-    find /usr/local;
+    find /usr/local ! -path '/usr/local/share/*';
 
 FROM builder-py-deps AS builder-py
 
@@ -258,7 +257,8 @@ RUN set -ex; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
-    rm -rv lib-dynload; \
+    # lib-dynload dir should exist to remove 'Could not find platform dependent libraries <exec_prefix>' warning
+    rm -v lib-dynload/*; \
     # similar to debian libpython3-stdlib (pydoc?)
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
@@ -272,7 +272,7 @@ RUN set -ex; \
     find /py_root; \
     ldd -r /py_root/usr/local/bin/python; \
     cat /py_root/usr/local/share/python-revisions;
-    # TODO: exec_prefix, test _posixsubprocess
+    # TODO: test _posixsubprocess
 
 COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
