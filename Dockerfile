@@ -55,7 +55,7 @@ libstdc++\n\
     # Retain only differences
     find /py_root_plus -name os-core-plus -delete; \
     pushd /cc_root; \
-    find . -depth -exec rm -d '/py_root_plus/{}' \;; \
+    find . -depth -exec rm -dv '/py_root_plus/{}' \;; \
     popd; \
     # Strip out unnecessary files
     set +x; before="$(set +x; find /cc_root)"; set -x; \
@@ -82,8 +82,8 @@ tty:x:5:\n\
 nonroot:x:54321:\n\
 ' > /cc_root/etc/group; \
     install -dvm700 -g54321 -o54321 /cc_root/home/nonroot; \
-    set +x; after="$(find /cc_root)"; set -x; \
     # Print contents
+    set +x; after="$(find /cc_root)"; set -x; \
     diff <(set +x; echo "$before") <(set +x; echo "$after") || true; \
     find /cc_root; \
     find /py_root_plus;
@@ -170,20 +170,20 @@ Cflags: -I\${includedir}\n\
                 --libdir=/usr/local/lib64 \
                 --disable-multi-os-directory \
                 --disable-docs; \
-    # check requires runtest
+    # check requires dejagnu
     make "$makeopts" install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libuuid
-    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
+    git clone --depth 1 https://github.com/util-linux/util-linux libuuid; \
     pushd libuuid; \
     ./autogen.sh; \
     ./configure --disable-shared \
                 --libdir=/usr/local/lib64 \
                 --disable-all-programs \
                 --enable-libuuid; \
-    make "$makeopts" check; \
-    make install; \
+    # check requires non-root uid
+    make "$makeopts" install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libressl
@@ -211,10 +211,12 @@ RUN set -ex; \
     set -u; \
     export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    export PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig"; \
     # Install python
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
     pushd python; \
+    curl "https://raw.githubusercontent.com/openbsd/ports/master/lang/python/$PYTHON_BRANCH/patches/patch-Modules__hashopenssl_c" | patch -p0; \
     # Might not be needed in 3.12
     sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
     # Build test modules as shared libraries
@@ -226,15 +228,18 @@ RUN set -ex; \
                 # --with-lto \
                 --enable-shared \
                 --without-ensurepip \
-                MODULE_BUILDTYPE=static; \
-    make "$makeopts"; \
+                MODULE_BUILDTYPE=static \
+                ac_cv_working_openssl_hashlib=yes; \
+    # make "$makeopts"; \
+    make; \
+    rm python; \
+    make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath=\$\$ORIGIN/../lib64"; \
     make test; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
-    # Print contents
-    find /py_root; \
     # Strip out unnecessary files
+    set +x; before="$(set +x; find /py_root)"; set -x; \
     find /py_root/usr/local -depth \
         \( \
             \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
@@ -260,23 +265,15 @@ RUN set -ex; \
     popd; \
     popd; \
     popd; \
-    # Copy shared libraries
-    find /usr/lib64 -depth -type f \
-        \( \
-            -name 'libz.so.*' \
-         -o -name 'libbz2.so.*' \
-         -o -name 'liblzma.so.*' \
-         -o -name 'libffi.so.*' \
-         -o -name 'libexpat.so.*' \
-         -o -name 'libuuid.so.*' \
-         -o -name 'libcrypto.so.*' \
-         -o -name 'libssl.so.*' \
-         # Some packages (e.g. pytorch) need libstdc++
-         -o -name 'libstdc++.so.*' \
-        \) -exec install -Dvm755 '{}' '/py_root/{}' \;; \
+    # Add revision file
+    install -Dvm644 /revisions /py_root/usr/local/share/python-revisions; \
     # Print contents
+    set +x; after="$(set +x; find /py_root)"; set -x; \
+    diff <(set +x; echo "$before") <(set +x; echo "$after") || true; \
     find /py_root; \
     ldd -r /py_root/usr/local/bin/python;
+
+COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
 FROM cc-latest AS py-latest
 
