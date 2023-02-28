@@ -81,12 +81,12 @@ nonroot:x:54321:\n\
 
 FROM scratch AS cc-latest
 
-COPY --link --from=builder-cc /cc_root /
+COPY --link --from=builder-cc /cc_root/ /
 ENV LANG=C.UTF-8
 
 FROM cc-latest AS cc-debug
 
-COPY --link --from=busybox:musl /bin /bin/
+COPY --link --from=busybox:musl /bin/ /bin/
 CMD ["sh"]
 
 FROM cc-latest AS cc-nonroot
@@ -118,8 +118,8 @@ RUN set -ex; \
     cat Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
-                --enable-optimizations \
-                --with-lto \
+                # --enable-optimizations \
+                # --with-lto \
                 --enable-shared \
                 --with-system-expat \
                 --without-ensurepip \
@@ -175,12 +175,12 @@ RUN set -ex; \
 
 FROM cc-latest AS py-latest
 
-COPY --link --from=builder-py /py_root /
+COPY --link --from=builder-py /py_root/ /
 CMD ["python"]
 
 FROM py-latest AS py-debug
 
-COPY --link --from=busybox:musl /bin /bin/
+COPY --link --from=busybox:musl /bin/ /bin/
 CMD ["sh"]
 
 FROM py-latest AS py-nonroot
