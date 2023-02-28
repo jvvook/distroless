@@ -115,7 +115,7 @@ RUN set -ex; \
     set -u; \
     mkdir /deps; \
     pushd /deps; \
-    export CFLAGS="$CFLAGS -flto=auto"; \
+    export CFLAGS="$CFLAGS -fPIC -flto=auto"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
     # Install zlib (cloudflare fork)
     git clone --depth 1 https://github.com/cloudflare/zlib; \
@@ -230,11 +230,10 @@ RUN set -ex; \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static \
                 ac_cv_working_openssl_hashlib=yes; \
-    # make "$makeopts"; \
-    make; \
+    make "$makeopts"; \
     rm python; \
-    make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath=\$\$ORIGIN/../lib64"; \
-    make test; \
+    make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath='\$\$ORIGIN/../lib64'"; \
+    # make test; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
