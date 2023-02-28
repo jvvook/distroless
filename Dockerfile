@@ -122,7 +122,8 @@ RUN set -ex; \
     pushd zlib; \
     ./configure --static \
                 --libdir=/usr/local/lib64; \
-    make "$makeopts" check install; \
+    make "$makeopts" check; \
+    make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install bzip2
@@ -157,7 +158,8 @@ Cflags: -I\${includedir}\n\
                 --disable-lzma-links \
                 --disable-scripts \
                 --disable-doc; \
-    make "$makeopts" check install; \
+    make "$makeopts" check; \
+    make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libffi
@@ -168,7 +170,8 @@ Cflags: -I\${includedir}\n\
                 --libdir=/usr/local/lib64 \
                 --disable-multi-os-directory \
                 --disable-docs; \
-    make "$makeopts" check install; \
+    # check requires runtest
+    make "$makeopts" install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libuuid
@@ -179,17 +182,19 @@ Cflags: -I\${includedir}\n\
                 --libdir=/usr/local/lib64 \
                 --disable-all-programs \
                 --enable-libuuid; \
-    make "$makeopts" check install; \
+    make "$makeopts" check; \
+    make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libressl
-    git clone --depth 1 https://github.com/libressl/portable libressl \
+    git clone --depth 1 https://github.com/libressl/portable libressl; \
     pushd libressl; \
     ./autogen.sh; \
     ./configure --disable-shared \
                 --libdir=/usr/local/lib64 \
                 --with-openssldir=/etc/ssl; \
-    make "$makeopts" check install; \
+    make "$makeopts" check; \
+    make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     popd; \
@@ -220,10 +225,10 @@ RUN set -ex; \
                 # --enable-optimizations \
                 # --with-lto \
                 --enable-shared \
-                --with-system-expat \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static; \
     make "$makeopts"; \
+    make test; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
