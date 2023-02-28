@@ -5,22 +5,13 @@ FROM clearlinux AS builder-base
 
 RUN set -eux; \
     swupd update --no-boot-update; \
-    swupd bundle-add mixer \
-                     # python dependencies (w/o ncurses/readline/gdbm/sqlite3)
-                     devpkg-zlib \
-                     devpkg-bzip2 \
-                     devpkg-xz \
-                     devpkg-libffi \
-                     devpkg-expat \
-                     devpkg-util-linux \
-                     devpkg-openssl \
-                     --no-boot-update;
+    swupd bundle-add mixer c-basic diffutils --no-boot-update;
 
 FROM builder-base AS builder-cc
 
 RUN set -eux; \
     source /usr/lib/os-release; \
-    # Customize os-core
+    # Customize bundles
     mkdir /repo; \
     pushd /repo; \
     mixer init --no-default-bundles --mix-version "$VERSION_ID"; \
@@ -30,14 +21,19 @@ RUN set -eux; \
 glibc-lib-avx2\n\
 libgcc1\n\
 netbase-data\n\
-# tzdata-minimal\n\
+#tzdata-minimal\n\
 tzdata\n\
 ' > local-bundles/os-core; \
+    mixer bundle add os-core-plus; \
+    mixer bundle edit os-core-plus; \
+    printf '\
+libstdc++\n\
+' > local-bundles/os-core-plus; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
     cat builder.conf; \
     mixer build all; \
     popd; \
-    # Install os-core
+    # Install base OS
     mkdir /cc_root; \
     swupd os-install --version "$VERSION_ID" \
                      --path /cc_root \
@@ -47,16 +43,29 @@ tzdata\n\
                      --no-scripts \
                      --url file:///repo/update/www \
                      --certpath /repo/Swupd_Root.pem; \
-    # Print contents
-    find /cc_root; \
+    mkdir /py_root_plus; \
+    swupd os-install --version "$VERSION_ID" \
+                     --path /py_root_plus \
+                     --statedir /swupd-state \
+                     --bundles os-core,os-core-plus \
+                     --no-boot-update \
+                     --no-scripts \
+                     --url file:///repo/update/www \
+                     --certpath /repo/Swupd_Root.pem; \
+    # Retain only differences
+    find /py_root_plus -name os-core-plus -delete; \
+    pushd /cc_root; \
+    find . -depth -exec rm -d '/py_root_plus/{}' \;; \
+    popd; \
     # Strip out unnecessary files
+    set +x; before="$(set +x; find /cc_root)"; set -x; \
     find /cc_root -depth \
         \( \
             -name clear \
          -o -name swupd \
          -o -name package-licenses \
         \) -exec rm -rv '{}' +; \
-    rm -rv /cc_root/{autofs,boot,media,mnt,srv}; \
+    rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
     # Add CA certs
     CLR_TRUST_STORE=/certs clrtrust generate; \
     install -Dvm644 /certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
@@ -73,11 +82,11 @@ tty:x:5:\n\
 nonroot:x:54321:\n\
 ' > /cc_root/etc/group; \
     install -dvm700 -g54321 -o54321 /cc_root/home/nonroot; \
+    set +x; after="$(find /cc_root)"; set -x; \
     # Print contents
+    diff <(set +x; echo "$before") <(set +x; echo "$after") || true; \
     find /cc_root; \
-    cat /cc_root/etc/passwd; \
-    cat /cc_root/etc/group; \
-    cat /cc_root/usr/lib/os-release;
+    find /py_root_plus;
 
 FROM scratch AS cc-latest
 
