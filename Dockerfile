@@ -217,9 +217,9 @@ RUN set -ex; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
     pushd python; \
     curl "https://raw.githubusercontent.com/openbsd/ports/master/lang/python/$PYTHON_BRANCH/patches/patch-Modules__hashopenssl_c" | patch -p0; \
-    # Might not be needed in 3.12
+    # might not be needed in 3.12
     sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
-    # Build test modules as shared libraries
+    # build test modules as shared libraries
     sed -i '/^# Test modules/a \*shared\*' Modules/Setup.stdlib.in; \
     cat Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
@@ -259,7 +259,7 @@ RUN set -ex; \
     pushd "$pyid"; \
     [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
     rm -rv lib-dynload; \
-    # Strip like debian libpython3-stdlib (pydoc?)
+    # similar to debian libpython3-stdlib (pydoc?)
     rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
     popd; \
     popd; \
@@ -270,7 +270,9 @@ RUN set -ex; \
     set +x; after="$(set +x; find /py_root)"; set -x; \
     diff <(set +x; echo "$before") <(set +x; echo "$after") || true; \
     find /py_root; \
-    ldd -r /py_root/usr/local/bin/python;
+    ldd -r /py_root/usr/local/bin/python; \
+    cat /py_root/usr/local/share/python-revisions;
+    # TODO: exec_prefix, test _posixsubprocess
 
 COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
