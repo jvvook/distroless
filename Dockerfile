@@ -5,7 +5,7 @@ FROM clearlinux AS builder-base
 
 RUN set -eux; \
     swupd update --no-boot-update; \
-    swupd bundle-add mixer c-basic diffutils --no-boot-update;
+    swupd bundle-add mixer c-basic diffutils patch --no-boot-update;
 
 FROM builder-base AS builder-cc
 
@@ -108,7 +108,96 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
-FROM builder-base AS builder-py
+FROM builder-base AS builder-py-deps
+
+RUN set -ex; \
+    source /usr/share/defaults/etc/profile; \
+    set -u; \
+    mkdir /deps; \
+    pushd /deps; \
+    export CFLAGS="$CFLAGS -flto=auto"; \
+    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    # Install zlib (cloudflare fork)
+    git clone --depth 1 https://github.com/cloudflare/zlib; \
+    pushd zlib; \
+    ./configure --static \
+                --libdir=/usr/local/lib64; \
+    make "$makeopts" check install; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install bzip2
+    git clone --depth 1 https://sourceware.org/git/bzip2; \
+    pushd bzip2; \
+    make "$makeopts" check CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}"; \
+    install -vm644 bzlib.h /usr/local/include; \
+    install -vm644 libbz2.a /usr/local/lib64; \
+    printf "\
+prefix=/usr/local\n\
+exec_prefix=\${prefix}\n\
+libdir=\${exec_prefix}/lib64\n\
+includedir=\${prefix}/include\n\n\
+Name: bzip2\n\
+Description: A file compression library\n\
+Version: $(grep '^DISTNAME=' Makefile | cut -d- -f2)\n\
+Libs: -L\${libdir} -lbz2\n\
+Cflags: -I\${includedir}\n\
+" > /usr/local/lib64/pkgconfig/bzip2.pc; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install xz
+    git clone --depth 1 https://github.com/tukaani-project/xz; \
+    pushd xz; \
+    ./autogen.sh --no-po4a; \
+    ./configure --disable-shared \
+                --libdir=/usr/local/lib64 \
+                --disable-xz \
+                --disable-xzdec \
+                --disable-lzmadec \
+                --disable-lzmainfo \
+                --disable-lzma-links \
+                --disable-scripts \
+                --disable-doc; \
+    make "$makeopts" check install; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install libffi
+    git clone --depth 1 https://github.com/libffi/libffi; \
+    pushd libffi; \
+    ./autogen.sh; \
+    ./configure --disable-shared \
+                --libdir=/usr/local/lib64 \
+                --disable-multi-os-directory \
+                --disable-docs; \
+    make "$makeopts" check install; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install libuuid
+    git clone --depth 1 https://git.kernel.org/pub/scm/utils/util-linux/util-linux libuuid; \
+    pushd libuuid; \
+    ./autogen.sh; \
+    ./configure --disable-shared \
+                --libdir=/usr/local/lib64 \
+                --disable-all-programs \
+                --enable-libuuid; \
+    make "$makeopts" check install; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    # Install libressl
+    git clone --depth 1 https://github.com/libressl/portable libressl \
+    pushd libressl; \
+    ./autogen.sh; \
+    ./configure --disable-shared \
+                --libdir=/usr/local/lib64 \
+                --with-openssldir=/etc/ssl; \
+    make "$makeopts" check install; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
+    popd; \
+    popd; \
+    # Print contents
+    rm -rv /usr/local/share; \
+    find /usr/local;
+
+FROM builder-py-deps AS builder-py
 
 ARG PYTHON_BRANCH
 
@@ -116,10 +205,11 @@ RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
     export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
+    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
     # Install python
     mkdir /py_root; \
-    git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython; \
-    pushd cpython; \
+    git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
+    pushd python; \
     # Might not be needed in 3.12
     sed -i 's/^#@MODULE__CTYPES_TRUE@\(.*\)/\1 -lffi/' Modules/Setup.stdlib.in; \
     # Build test modules as shared libraries
@@ -133,8 +223,9 @@ RUN set -ex; \
                 --with-system-expat \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static; \
-    make "-j$(nproc)"; \
+    make "$makeopts"; \
     make install DESTDIR=/py_root; \
+    echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Print contents
     find /py_root; \
