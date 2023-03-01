@@ -1,0 +1,119 @@
+name: Build and push Docker images
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 */6 * * *'
+
+env:
+  REGISTRY: ghcr.io
+  TAG_BASE: ghcr.io/${{ github.repository }}
+  LABELS: |
+    org.opencontainers.image.source=${{ github.event.repository.html_url }}
+    org.opencontainers.image.description=${{ github.event.repository.description }}
+    org.opencontainers.image.licenses=${{ github.event.repository.license.spdx_id }}
+    org.opencontainers.image.revision=${{ github.sha }}
+  PYTHON_BRANCH: 3.11
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image (cc:latest)
+        uses: docker/build-push-action@v4
+        with:
+          labels: ${{ env.LABELS }}
+          target: cc-latest
+          tags: |
+            ${{ env.TAG_BASE }}/cc:latest
+
+      - name: Build and push Docker image (cc:debug)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: cc-debug
+          tags: |
+            ${{ env.TAG_BASE }}/cc:debug
+
+      - name: Build and push Docker image (cc:nonroot)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: cc-nonroot
+          tags: |
+            ${{ env.TAG_BASE }}/cc:nonroot
+
+      - name: Build and push Docker image (cc:debug-nonroot)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: cc-debug-nonroot
+          tags: |
+            ${{ env.TAG_BASE }}/cc:debug-nonroot
+
+      - name: Build and push Docker image (py:latest)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: py-latest
+          tags: |
+            ${{ env.TAG_BASE }}/py:latest
+            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-latest
+          build-args: |
+            PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
+
+      - name: Build and push Docker image (py:debug)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: py-debug
+          tags: |
+            ${{ env.TAG_BASE }}/py:debug
+            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-debug
+          build-args: |
+            PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
+
+      - name: Build and push Docker image (py:nonroot)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: py-nonroot
+          tags: |
+            ${{ env.TAG_BASE }}/py:nonroot
+            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-nonroot
+          build-args: |
+            PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
+
+      - name: Build and push Docker image (py:debug-nonroot)
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          labels: ${{ env.LABELS }}
+          target: py-debug-nonroot
+          tags: |
+            ${{ env.TAG_BASE }}/py:debug-nonroot
+            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-debug-nonroot
+          build-args: |
+            PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
