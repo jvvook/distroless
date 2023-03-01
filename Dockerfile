@@ -223,8 +223,8 @@ RUN set -ex; \
     cat Modules/Setup.stdlib.in; \
     ln -svrf Modules/Setup.stdlib Modules/Setup.local; \
     ./configure --enable-option-checking=fatal \
-                # --enable-optimizations \
-                # --with-lto \
+                --enable-optimizations \
+                --with-lto \
                 --enable-shared \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static \
@@ -232,7 +232,6 @@ RUN set -ex; \
     make "$makeopts"; \
     rm python; \
     make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath='\$\$ORIGIN/../lib64'"; \
-    # make test; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -272,7 +271,6 @@ RUN set -ex; \
     find /py_root; \
     ldd -r /py_root/usr/local/bin/python; \
     cat /py_root/usr/local/share/python-revisions;
-    # TODO: test _posixsubprocess
 
 COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
