@@ -71,50 +71,50 @@ jobs:
           tags: |
             ${{ env.TAG_BASE }}/cc:debug-nonroot
 
-      - name: Build and push Docker image (py:latest)
+      - name: Build and push Docker image (python:latest)
         uses: docker/build-push-action@v4
         with:
           push: true
           labels: ${{ env.LABELS }}
-          target: py-latest
+          target: python-latest
           tags: |
-            ${{ env.TAG_BASE }}/py:latest
-            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-latest
+            ${{ env.TAG_BASE }}/python:latest
+            ${{ env.TAG_BASE }}/python:${{ env.PYTHON_BRANCH }}-latest
           build-args: |
             PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
 
-      - name: Build and push Docker image (py:debug)
+      - name: Build and push Docker image (python:debug)
         uses: docker/build-push-action@v4
         with:
           push: true
           labels: ${{ env.LABELS }}
-          target: py-debug
+          target: python-debug
           tags: |
-            ${{ env.TAG_BASE }}/py:debug
-            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-debug
+            ${{ env.TAG_BASE }}/python:debug
+            ${{ env.TAG_BASE }}/python:${{ env.PYTHON_BRANCH }}-debug
           build-args: |
             PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
 
-      - name: Build and push Docker image (py:nonroot)
+      - name: Build and push Docker image (python:nonroot)
         uses: docker/build-push-action@v4
         with:
           push: true
           labels: ${{ env.LABELS }}
-          target: py-nonroot
+          target: python-nonroot
           tags: |
-            ${{ env.TAG_BASE }}/py:nonroot
-            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-nonroot
+            ${{ env.TAG_BASE }}/python:nonroot
+            ${{ env.TAG_BASE }}/python:${{ env.PYTHON_BRANCH }}-nonroot
           build-args: |
             PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
 
-      - name: Build and push Docker image (py:debug-nonroot)
+      - name: Build and push Docker image (python:debug-nonroot)
         uses: docker/build-push-action@v4
         with:
           push: true
           labels: ${{ env.LABELS }}
-          target: py-debug-nonroot
+          target: python-debug-nonroot
           tags: |
-            ${{ env.TAG_BASE }}/py:debug-nonroot
-            ${{ env.TAG_BASE }}/py:${{ env.PYTHON_BRANCH }}-debug-nonroot
+            ${{ env.TAG_BASE }}/python:debug-nonroot
+            ${{ env.TAG_BASE }}/python:${{ env.PYTHON_BRANCH }}-debug-nonroot
           build-args: |
             PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}

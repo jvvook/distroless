@@ -108,7 +108,7 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
-FROM builder-base AS builder-py-deps
+FROM builder-base AS builder-python-deps
 
 RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
@@ -201,7 +201,7 @@ Cflags: -I\${includedir}\n\
     # Print contents
     find /usr/local ! -path '/usr/local/share/*';
 
-FROM builder-py-deps AS builder-py
+FROM builder-python-deps AS builder-python
 
 ARG PYTHON_BRANCH
 
@@ -274,22 +274,22 @@ RUN set -ex; \
 
 COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
-FROM cc-latest AS py-latest
+FROM cc-latest AS python-latest
 
-COPY --link --from=builder-py /py_root/ /
+COPY --link --from=builder-python /py_root/ /
 CMD ["python"]
 
-FROM py-latest AS py-debug
+FROM python-latest AS python-debug
 
 COPY --link --from=busybox:musl /bin/ /bin/
 CMD ["sh"]
 
-FROM py-latest AS py-nonroot
+FROM python-latest AS python-nonroot
 
 USER nonroot
 WORKDIR /home/nonroot
 
-FROM py-debug AS py-debug-nonroot
+FROM python-debug AS python-debug-nonroot
 
 USER nonroot
 WORKDIR /home/nonroot
