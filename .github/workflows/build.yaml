@@ -18,7 +18,7 @@ env:
   PYTHON_BRANCH: 3.11
 
 jobs:
-  build-and-push-image:
+  build-and-push-images:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,6 +38,7 @@ jobs:
       - name: Build and push Docker image (cc:latest)
         uses: docker/build-push-action@v4
         with:
+          push: true
           labels: ${{ env.LABELS }}
           target: cc-latest
           tags: |

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-ARG PYTHON_BRANCH=3.11
+ARG PYTHON_BRANCH
 
 FROM clearlinux AS builder-base
 
