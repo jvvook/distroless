@@ -1,5 +1,7 @@
 # Distroless Base Images
 
+![workflow badge](https://github.com/jvvook/distroless/actions/workflows/build.yaml/badge.svg)
+
 Custom distroless base images based on [Clear Linux OS](//clearlinux.org/) for my personal use
 
 ## Differences from [GoogleContainerTools/distroless](//github.com/GoogleContainerTools/distroless)
