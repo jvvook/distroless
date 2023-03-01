@@ -260,7 +260,7 @@ RUN set -ex; \
     # lib-dynload dir should exist to remove 'Could not find platform dependent libraries <exec_prefix>' warning
     rm -v lib-dynload/*; \
     # similar to debian libpython3-stdlib (pydoc?)
-    rm -rv config-* site-packages ensurepip lib2to3 idlelib tkinter pydoc* turtledemo; \
+    rm -rv config-* site-packages ensurepip venv lib2to3 idlelib tkinter pydoc* *demo; \
     popd; \
     popd; \
     popd; \
