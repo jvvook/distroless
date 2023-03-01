@@ -6,9 +6,10 @@ Custom distroless base images based on [Clear Linux OS](//clearlinux.org/) for m
 
 -   Based on [Clear Linux OS](//clearlinux.org/), a Linux distribution optimized for Intel processors
 -   Simple dockerfile-based build
--   Only two varients (cc/py) & one architecture (amd64)
+-   Only two varients (cc/py) × one architecture (amd64)
 -   cc variant does not contain OpenSSL.
--   py varient does not contain a shell, and thus [`os.system()` won't work](//github.com/GoogleContainerTools/distroless/issues/601).
--   py varient is built without terminal (`ncurses`/`readline`) and embedded db (`gdbm`/`sqlite`) support.
--   py varient: only one major version of Python is maintained and updated at my discretion.
--   py varient is currently highly experimental.
+-   py varient has several compatibility breaks. it...
+    -   does not contain a shell, and thus [`os.system()` won't work](//github.com/GoogleContainerTools/distroless/issues/601).
+    -   is built without terminal (`ncurses`, `readline`) and embedded db (`gdbm`, `sqlite`) support.
+    -   is built with LibreSSL, and thus [lacks some hash algorithms](//peps.python.org/pep-0644/#libressl-support).
+    -   supports only one major version of Python, chosen at my discretion.
