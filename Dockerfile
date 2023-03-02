@@ -99,7 +99,7 @@ ENV LANG=C.UTF-8
 
 FROM cc-latest AS cc-debug
 
-COPY --link --from=busybox:musl /bin/ /bin/
+COPY --link --from=busybox /bin/ /bin/
 CMD ["sh"]
 
 FROM cc-latest AS cc-nonroot
@@ -297,7 +297,7 @@ CMD ["python"]
 
 FROM python-latest AS python-debug
 
-COPY --link --from=busybox:musl /bin/ /bin/
+COPY --link --from=busybox /bin/ /bin/
 CMD ["sh"]
 
 FROM python-latest AS python-nonroot
