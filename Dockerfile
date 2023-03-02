@@ -66,16 +66,8 @@ libstdc++\n\
          -o -name package-licenses \
         \) -exec rm -rv '{}' +; \
     rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
-    # remove compatibility hack (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L549)
-    for f in /cc_root/usr/lib64/{ld-linux-x86-64.so.2,libc.so.6}; do \
-        [ -L "$f" ]; \
-        o="$(readlink -f "$f")"; \
-        rm -v "$f"; \
-        mv -v "$o" "$f"; \
-    done; \
-    rm -v /cc_root/usr/lib64/{ld-*.so,libc-*.so}; \
     # glibc -> not stripped, libgcc/libstdc++ -> stripped
-    find /cc_root/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
+    find /cc_root/usr/lib64 /py_root_plus/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
     # Add CA certs
     CLR_TRUST_STORE=/certs clrtrust generate; \
     install -Dvm644 /certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
