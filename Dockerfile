@@ -26,6 +26,7 @@ tzdata\n\
 ' > local-bundles/os-core; \
     mixer bundle add os-core-plus; \
     mixer bundle edit os-core-plus; \
+    # better manylinux compliance
     printf '\
 libstdc++\n\
 ' > local-bundles/os-core-plus; \
