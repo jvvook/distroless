@@ -258,8 +258,20 @@ RUN set -ex; \
     [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
     # lib-dynload dir should exist to remove 'Could not find platform dependent libraries <exec_prefix>' warning
     rm -v lib-dynload/*; \
-    # similar to debian libpython3-stdlib (pydoc?)
-    rm -rv config-* site-packages ensurepip venv lib2to3 idlelib tkinter pydoc* *demo; \
+    # follow Debian convention
+    rm -rv config-* \
+           # python3-venv
+           ensurepip \
+           # python3-distutils (will be removed in 3.12)
+           distutils \
+           # python3-lib2to3
+           lib2to3 \
+           # idle-python3
+           idlelib \
+           # python3-tk
+           tkinter \
+           # python3-examples
+           *demo; \
     popd; \
     popd; \
     popd; \
