@@ -229,13 +229,13 @@ RUN set -ex; \
     ./configure --enable-option-checking=fatal \
                 --enable-optimizations \
                 --with-lto \
-                --enable-shared \
+                # --enable-shared \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static \
                 ac_cv_working_openssl_hashlib=yes; \
     make "$makeopts"; \
-    rm python; \
-    make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath='\$\$ORIGIN/../lib64'"; \
+    # rm python; \
+    # make "$makeopts" python LDFLAGS="${LDFLAGS:-} -Wl,-rpath='\$\$ORIGIN/../lib64'"; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -256,7 +256,7 @@ RUN set -ex; \
     ln -sv python3 python; \
     popd; \
     pushd lib; \
-    find . -maxdepth 1 -type f -name "lib$pyid.so.*" -exec install -Dvm755 '{}' '../lib64/{}' \;; \
+    # find . -maxdepth 1 -type f -name "lib$pyid.so.*" -exec install -Dvm755 '{}' '../lib64/{}' \;; \
     find . -maxdepth 1 ! -name "$pyid" ! -name . -exec rm -rv '{}' +; \
     pushd "$pyid"; \
     [ -z "$(ls lib-dynload | grep -v test | grep -v xxlimited)" ]; \
