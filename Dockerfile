@@ -210,7 +210,7 @@ RUN set -ex; \
     set -u; \
     export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
     makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
-    export PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig"; \
+    export PKG_CONFIG_PATH='/usr/local/lib64/pkgconfig'; \
     # Install python
     mkdir /py_root; \
     git clone --depth 1 --branch "$PYTHON_BRANCH" https://github.com/python/cpython python; \
