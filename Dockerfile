@@ -68,6 +68,8 @@ libstdc++\n\
     rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
     # glibc -> not stripped, libgcc/libstdc++ -> stripped
     find /cc_root/usr/lib64 /py_root_plus/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
+    # remove en_US locale which takes up 2.9MB (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L770)
+    rm -rv /cc_root/usr/share/locale/en_US.UTF-8; \
     # Add CA certs
     CLR_TRUST_STORE=/certs clrtrust generate; \
     install -Dvm644 /certs/anchors/ca-certificates.crt /cc_root/etc/ssl/certs/ca-certificates.crt; \
