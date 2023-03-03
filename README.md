@@ -11,6 +11,7 @@ Custom distroless images based on [Clear Linux OS](//clearlinux.org/) for my per
 -   Only two varients (`cc`/`python`) × one architecture (`amd64`)
 -   `cc` variant does not ship `openssl` and `libgomp`.
 -   `python` varient has several compatibility breaks. it...
+
     -   does not contain a shell, and thus [`os.system()` won't work](//github.com/GoogleContainerTools/distroless/issues/601).
     -   is built without terminal (`ncurses`, `readline`) and embedded db (`gdbm`, `sqlite`) support.
     -   is built with `libressl`, and thus [lacks some hash algorithms](//peps.python.org/pep-0644/#libressl-support).
