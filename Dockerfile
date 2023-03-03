@@ -20,16 +20,11 @@ RUN set -eux; \
     printf '\
 glibc-lib-avx2\n\
 libgcc1\n\
+libstdc++\n\
 netbase-data\n\
 #tzdata-minimal\n\
 tzdata\n\
 ' > local-bundles/os-core; \
-    mixer bundle add os-core-plus; \
-    mixer bundle edit os-core-plus; \
-    # better manylinux compliance
-    printf '\
-libstdc++\n\
-' > local-bundles/os-core-plus; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
     cat builder.conf; \
     mixer build all; \
@@ -44,20 +39,6 @@ libstdc++\n\
                      --no-scripts \
                      --url file:///repo/update/www \
                      --certpath /repo/Swupd_Root.pem; \
-    mkdir /py_root_plus; \
-    swupd os-install --version "$VERSION_ID" \
-                     --path /py_root_plus \
-                     --statedir /swupd-state \
-                     --bundles os-core,os-core-plus \
-                     --no-boot-update \
-                     --no-scripts \
-                     --url file:///repo/update/www \
-                     --certpath /repo/Swupd_Root.pem; \
-    # Retain only differences
-    find /py_root_plus -name os-core-plus -delete; \
-    pushd /cc_root; \
-    find . -depth -exec rm -dv '/py_root_plus/{}' \;; \
-    popd; \
     # Strip out unnecessary files
     set +x; before="$(set +x; find /cc_root)"; set -x; \
     find /cc_root -depth \
@@ -68,7 +49,7 @@ libstdc++\n\
         \) -exec rm -rv '{}' +; \
     rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
     # glibc -> not stripped, libgcc/libstdc++ -> stripped
-    find /cc_root/usr/lib64 /py_root_plus/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
+    find /cc_root/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
     # remove en_US locale which takes up 2.9MB (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L770)
     rm -rv /cc_root/usr/share/locale/en_US.UTF-8; \
     # Add CA certs
@@ -90,8 +71,7 @@ nonroot:x:54321:\n\
     # Print contents
     set +x; after="$(find /cc_root)"; set -x; \
     diff <(set +x; echo "$before") <(set +x; echo "$after") || true; \
-    find /cc_root; \
-    find /py_root_plus;
+    find /cc_root;
 
 FROM scratch AS cc-latest
 
@@ -288,8 +268,6 @@ RUN set -ex; \
     find /py_root; \
     ldd -r /py_root/usr/local/bin/python; \
     cat /py_root/usr/local/share/python-revisions;
-
-COPY --link --from=builder-cc /py_root_plus/ /py_root/
 
 FROM cc-latest AS python-latest
 
