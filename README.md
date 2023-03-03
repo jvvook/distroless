@@ -1,15 +1,15 @@
-# Distroless Base Images
+# [Clear](//clearlinux.org/) [Distroless](//github.com/GoogleContainerTools/distroless) Images
 
 ![workflow badge](https://github.com/jvvook/distroless/actions/workflows/build.yaml/badge.svg)
 
-Custom distroless base images based on [Clear Linux OS](//clearlinux.org/) for my personal use
+Custom distroless images based on [Clear Linux OS](//clearlinux.org/) for my personal use
 
 ## Differences from [GoogleContainerTools/distroless](//github.com/GoogleContainerTools/distroless)
 
 -   Based on [Clear Linux OS](//clearlinux.org/), a Linux distribution optimized for Intel processors
 -   Simple dockerfile-based build
 -   Only two varients (`cc`/`python`) × one architecture (`amd64`)
--   `cc` variant does not contain `openssl` and `libgomp`.
+-   `cc` variant does not ship `openssl` and `libgomp`.
 -   `python` varient has several compatibility breaks. it...
     -   does not contain a shell, and thus [`os.system()` won't work](//github.com/GoogleContainerTools/distroless/issues/601).
     -   is built without terminal (`ncurses`, `readline`) and embedded db (`gdbm`, `sqlite`) support.
