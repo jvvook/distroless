@@ -50,7 +50,10 @@ tzdata\n\
     rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
     # glibc -> not stripped, libgcc/libstdc++ -> stripped
     find /cc_root/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
-    # remove en_US locale which takes up 2.9MB (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L770)
+    # remove duplicated libc (~2.0MB) (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L549)
+    find /cc_root/usr/lib64 -name 'libc-*.so' ! -name "$(readlink /cc_root/usr/lib64/libc.so.6)" -delete; \
+    find /cc_root/usr/lib64 -name 'ld-*.so' ! -name "$(readlink /cc_root/usr/lib64/ld-linux-x86-64.so.2)" -delete; \
+    # remove en_US locale (~2.9MB) (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L770)
     rm -rv /cc_root/usr/share/locale/en_US.UTF-8; \
     # Add CA certs
     CLR_TRUST_STORE=/certs clrtrust generate; \
