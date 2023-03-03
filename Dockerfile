@@ -93,6 +93,11 @@ FROM cc-debug AS cc-debug-nonroot
 USER nonroot
 WORKDIR /home/nonroot
 
+FROM cc-latest AS cc-check
+
+COPY --link --from=denoland/deno:bin /deno /usr/local/bin/deno
+RUN ["deno", "--version"]
+
 FROM builder-base AS builder-python-deps
 
 RUN set -ex; \
@@ -284,3 +289,7 @@ FROM python-debug AS python-debug-nonroot
 
 USER nonroot
 WORKDIR /home/nonroot
+
+FROM python-latest AS python-check
+
+RUN ["python", "--version"]

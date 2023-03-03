@@ -35,6 +35,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and check Docker image (cc:check)
+        uses: docker/build-push-action@v4
+        with:
+          target: cc-check
+
       - name: Build and push Docker image (cc:latest)
         uses: docker/build-push-action@v4
         with:
@@ -70,6 +75,13 @@ jobs:
           target: cc-debug-nonroot
           tags: |
             ${{ env.TAG_BASE }}/cc:debug-nonroot
+
+      - name: Build and check Docker image (python:check)
+        uses: docker/build-push-action@v4
+        with:
+          target: python-check
+          build-args: |
+            PYTHON_BRANCH=${{ env.PYTHON_BRANCH }}
 
       - name: Build and push Docker image (python:latest)
         uses: docker/build-push-action@v4
