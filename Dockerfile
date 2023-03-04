@@ -101,25 +101,30 @@ RUN ["deno", "--version"]
 FROM builder-base AS builder-python-deps
 
 RUN set -ex; \
+printf '\
+export CFLAGS="$CFLAGS -fPIC \
+-march=westmere -mtune=sapphirerapids \
+-fno-plt -fstack-protector-strong -fstack-clash-protection -fcf-protection"\n\
+export MAKEOPTS="-j$(cat /proc/cpuinfo | grep processor | wc -l)"\n\
+' > /etc/profile; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
     mkdir /deps; \
     pushd /deps; \
-    export CFLAGS="$CFLAGS -fPIC -flto=auto"; \
-    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
+    export CFLAGS="$CFLAGS -flto=auto"; \
     # Install zlib (cloudflare fork)
     git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
     ./configure --static \
                 --libdir=/usr/local/lib64; \
-    make "$makeopts" check; \
+    make "$MAKEOPTS" check; \
     make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install bzip2
     git clone --depth 1 https://sourceware.org/git/bzip2; \
     pushd bzip2; \
-    make "$makeopts" check CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}"; \
+    make "$MAKEOPTS" check CFLAGS="$CFLAGS" LDFLAGS="${LDFLAGS:-}"; \
     install -vm644 bzlib.h /usr/local/include; \
     install -vm644 libbz2.a /usr/local/lib64; \
     printf "\
@@ -148,7 +153,7 @@ Cflags: -I\${includedir}\n\
                 --disable-lzma-links \
                 --disable-scripts \
                 --disable-doc; \
-    make "$makeopts" check; \
+    make "$MAKEOPTS" check; \
     make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -161,7 +166,7 @@ Cflags: -I\${includedir}\n\
                 --disable-multi-os-directory \
                 --disable-docs; \
     # check requires dejagnu
-    make "$makeopts" install; \
+    make "$MAKEOPTS" install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libuuid
@@ -173,7 +178,7 @@ Cflags: -I\${includedir}\n\
                 --disable-all-programs \
                 --enable-libuuid; \
     # check requires non-root uid
-    make "$makeopts" install; \
+    make "$MAKEOPTS" install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
     # Install libressl
@@ -183,7 +188,7 @@ Cflags: -I\${includedir}\n\
     ./configure --disable-shared \
                 --libdir=/usr/local/lib64 \
                 --with-openssldir=/etc/ssl; \
-    make "$makeopts" check; \
+    make "$MAKEOPTS" check; \
     make install; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
@@ -199,7 +204,6 @@ RUN set -ex; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
     export LDFLAGS="${LDFLAGS:-} -Wl,--strip-all"; \
-    makeopts="-j$(cat /proc/cpuinfo | grep processor | wc -l)"; \
     export PKG_CONFIG_PATH='/usr/local/lib64/pkgconfig'; \
     # Install python
     mkdir /py_root; \
@@ -218,7 +222,7 @@ RUN set -ex; \
                 --without-ensurepip \
                 MODULE_BUILDTYPE=static \
                 ac_cv_working_openssl_hashlib=yes; \
-    make "$makeopts"; \
+    make "$MAKEOPTS"; \
     make install DESTDIR=/py_root; \
     echo "$(basename "$(pwd)")_rev=$(git rev-parse --short HEAD)" >> /revisions; \
     popd; \
