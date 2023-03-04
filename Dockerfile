@@ -7,9 +7,11 @@ RUN set -eux; \
     swupd update --no-boot-update; \
     swupd bundle-add mixer c-basic diffutils patch --no-boot-update; \
     printf '\
-export CFLAGS="$CFLAGS -fPIC \
--march=westmere -mtune=sapphirerapids \
--fno-plt -fstack-protector-strong -fstack-clash-protection -fcf-protection"\n\
+common="-fno-plt -fPIC \
+-O3 -pipe -march=westmere -mtune=sapphirerapids \
+-Wp,-D_FORTIFY_SOURCE=2 -fstack-protector-strong -fstack-clash-protection -fcf-protection"\n\
+export CFLAGS="$CFLAGS $common"\n\
+export CXXFLAGS="$CXXFLAGS $common"\n\
 export MAKEOPTS="-j$(cat /proc/cpuinfo | grep processor | wc -l)"\n\
 ' > /etc/profile;
 
