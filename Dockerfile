@@ -25,6 +25,11 @@ netbase-data\n\
 #tzdata-minimal\n\
 tzdata\n\
 ' > local-bundles/os-core; \
+    mixer bundle add os-core-plus; \
+    mixer bundle edit os-core-plus; \
+    printf '\
+gcc-libs-math\n\
+' > local-bundles/os-core-plus; \
     sed -i 's/os-core-update/os-core/' builder.conf; \
     cat builder.conf; \
     mixer build all; \
@@ -39,8 +44,21 @@ tzdata\n\
                      --no-scripts \
                      --url file:///repo/update/www \
                      --certpath /repo/Swupd_Root.pem; \
-    # Strip out unnecessary files
+    mkdir /cc_root_plus; \
+    swupd os-install --version "$VERSION_ID" \
+                     --path /cc_root_plus \
+                     --statedir /swupd-state \
+                     --bundles os-core-plus \
+                     --no-boot-update \
+                     --no-scripts \
+                     --url file:///repo/update/www \
+                     --certpath /repo/Swupd_Root.pem; \
+    # Add libgomp
     set +x; before="$(set +x; find /cc_root)"; set -x; \
+    pushd /cc_root_plus; \
+    find ./usr/lib64 -name 'libgomp.so.*' -exec mv -v '{}' '/cc_root/{}' \;; \
+    popd; \
+    # Strip out unnecessary files
     find /cc_root -depth \
         \( \
             -name clear \
@@ -49,7 +67,7 @@ tzdata\n\
         \) -exec rm -rv '{}' +; \
     rmdir -v /cc_root/{autofs,boot,media,mnt,srv}; \
     # glibc -> not stripped, libgcc/libstdc++ -> stripped
-    find /cc_root/usr/lib64 -name '*.so*' -exec strip -sv '{}' +; \
+    find /cc_root/usr/lib64 -type f -name '*.so*' -exec strip -sv '{}' +; \
     # remove en_US locale (~2.9MB) (https://github.com/clearlinux-pkgs/glibc/blob/4009bcd0fe818263297be7a667fdf941eb9387ed/glibc.spec#L770)
     rm -rv /cc_root/usr/share/locale/en_US.UTF-8; \
     # Add CA certs
