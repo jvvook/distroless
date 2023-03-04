@@ -5,7 +5,13 @@ FROM clearlinux AS builder-base
 
 RUN set -eux; \
     swupd update --no-boot-update; \
-    swupd bundle-add mixer c-basic diffutils patch --no-boot-update;
+    swupd bundle-add mixer c-basic diffutils patch --no-boot-update; \
+    printf '\
+export CFLAGS="$CFLAGS -fPIC \
+-march=westmere -mtune=sapphirerapids \
+-fno-plt -fstack-protector-strong -fstack-clash-protection -fcf-protection"\n\
+export MAKEOPTS="-j$(cat /proc/cpuinfo | grep processor | wc -l)"\n\
+' > /etc/profile;
 
 FROM builder-base AS builder-cc
 
@@ -119,17 +125,11 @@ RUN ["deno", "--version"]
 FROM builder-base AS builder-python-deps
 
 RUN set -ex; \
-printf '\
-export CFLAGS="$CFLAGS -fPIC \
--march=westmere -mtune=sapphirerapids \
--fno-plt -fstack-protector-strong -fstack-clash-protection -fcf-protection"\n\
-export MAKEOPTS="-j$(cat /proc/cpuinfo | grep processor | wc -l)"\n\
-' > /etc/profile; \
     source /usr/share/defaults/etc/profile; \
     set -u; \
+    export CFLAGS="$CFLAGS -flto=auto"; \
     mkdir /deps; \
     pushd /deps; \
-    export CFLAGS="$CFLAGS -flto=auto"; \
     # Install zlib (cloudflare fork)
     git clone --depth 1 https://github.com/cloudflare/zlib; \
     pushd zlib; \
